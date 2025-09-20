@@ -1,6 +1,6 @@
 ## Ansible guide companion repo
 
-Companion repo for my ansible guide: https://gyaaniguy.top/blog/ansible-basics/  
+Companion repo for my ansible guide: https://gyaaniguy.top/blog/category/ansible/
 
 Please read the above guide to learn more about ansible, what it can do, how to install and use it.  
 
