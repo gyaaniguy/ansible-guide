@@ -1,0 +1,28 @@
+- name: Install required packages
+  hosts: all
+  become: true
+
+  tasks:
+    - name: Update package cache
+     #become: true
+      apt:
+        update_cache: yes
+        upgrade: dist
+
+    - name: Install packages
+     #become: true
+      apt:
+        name:
+          - sudo
+          - zsh
+          - git
+          - curl
+          - unzip
+          - zip
+          - software-properties-common
+          - build-essential
+          - rsync
+          - htop
+          - neovim
+        state: present
+        install_recommends: no

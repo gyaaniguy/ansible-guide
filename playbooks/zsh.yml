@@ -1,0 +1,52 @@
+---
+- name: Setup Zsh with plugins and config
+  hosts: all
+  tasks:
+    - name: Run installation as target user
+      become: yes
+      become_user: "{{ user }}"
+      block:
+        - name: Install Oh My Zsh
+          shell: RUNZSH=no sh -c "$(curl -fsSL https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+          args:
+            creates: "~/.oh-my-zsh"
+
+        - name: Clone zsh-autosuggestions plugin
+          git:
+            repo: "https://github.com/zsh-users/zsh-autosuggestions"
+            dest: "~/.oh-my-zsh/custom/plugins/zsh-autosuggestions"
+            depth: 1
+
+        - name: Clone zsh-syntax-highlighting plugin
+          git:
+            repo: "https://github.com/zsh-users/zsh-syntax-highlighting.git"
+            dest: "~/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting"
+            depth: 1
+
+        - name: Clone fzf
+          git:
+            repo: "https://github.com/junegunn/fzf.git"
+            dest: "~/.fzf"
+            depth: 1
+
+        - name: Install fzf
+          shell: "~/.fzf/install --all"
+          args:
+            creates: "~/.fzf/bin/fzf"
+
+        - name: Clone fzf-tab plugin
+          git:
+            repo: "https://github.com/Aloxaf/fzf-tab"
+            dest: "~/.oh-my-zsh/custom/plugins/fzf-tab"
+            depth: 1
+
+        - name: Install Zoxide
+          shell: "curl -sSfL https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | sh"
+          args:
+            creates: "~/.zoxide"
+
+        - name: Copy .zshrc to user home
+          copy:
+            src: configs/.zshrc
+            dest: "~/.zshrc"
+            mode: "0644"

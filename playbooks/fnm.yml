@@ -1,0 +1,64 @@
+- name: Install fnm (Fast Node Manager) and node
+  hosts: all
+  tasks:
+    - name: Download fnm install script
+      get_url:
+        url: https://fnm.vercel.app/install
+        dest: /tmp/fnm_install.sh
+        mode: '0755'
+
+    - name: Run fnm install script
+      shell: /bin/bash /tmp/fnm_install.sh --install-dir "{{ ansible_env.HOME }}/.fnm" --skip-shell
+      args:
+        executable: /bin/bash
+
+    - name: Find fnm binary
+      shell: find {{ ansible_env.HOME }} -name fnm -type f
+      args:
+        executable: /bin/bash
+      register: fnm_binary_path
+      ignore_errors: yes
+
+    - name: Display fnm binary path
+      debug:
+        var: fnm_binary_path.stdout_lines
+
+    - name: Determine fnm path
+      set_fact:
+        fnm_resolved_path: "{{ fnm_binary_path.stdout_lines[0] | dirname if fnm_binary_path.stdout != '' else ansible_env.HOME ~ '/.fnm' }}"
+
+
+    - name: Add fnm to PATH in .zshrc
+      lineinfile:
+        path: "{{ ansible_env.HOME }}/.zshrc"
+        line: |
+          export PATH="{{ fnm_resolved_path }}:$PATH"
+          eval "$({{ fnm_resolved_path }}/fnm env)"
+        create: yes
+
+
+    - name: fnm version check
+      shell: "{{ item }} --version || echo 'Not found'"
+      args:
+        executable: /bin/bash
+      register: fnm_version
+      with_items:
+        - "{{ ansible_env.HOME }}/.fnm/fnm"
+      ignore_errors: yes
+
+    - name: Display fnm version check results
+      debug:
+        var: fnm_version.results
+
+    - name: Clean up install script
+      file:
+        path: /tmp/fnm_install.sh
+        state: absent
+
+    - name: Use Node.js version 22 with fnm
+      shell: |
+        source {{ ansible_env.HOME }}/.zshrc
+        fnm install 20
+        fnm use 20
+      args:
+        executable: /bin/zsh

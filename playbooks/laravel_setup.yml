@@ -1,0 +1,27 @@
+---
+# This requires first setting git bare repo on server, then setting it as 'origin' in git and pushing your local code to this bare repo
+# ansible-playbook laravel.yml -i ./inventory/hosts -l servername --extra-vars "app_path=/var/www/2030 bare_repo=/var/www/2030.git"
+
+- name: Deploy Laravel App to VPS
+  hosts: all
+  vars:
+    bare_repo: /var/www/2030.git
+
+  tasks:
+
+    - name: Ensure bare Git repo exists on remote
+      file:
+        path: "{{ bare_repo }}"
+        state: directory
+        mode: '0755'
+
+    - name: Initialize bare Git repo if not already
+      command: git init --bare
+      args:
+        chdir: "{{ bare_repo }}"
+      register: git_init_result
+      changed_when: "'Reinitialized existing Git repository' not in git_init_result.stdout"
+
+    - name: Mark bare repo as safe directory
+      become: true
+      command: git config --system --add safe.directory {{ bare_repo }}

@@ -1,0 +1,9 @@
+
+
+demo.somesite.com {
+    root * /var/www/some-site/public
+    php_fastcgi unix/{{ php_fpm_socket.stdout }}
+    file_server
+    request_timeout 1000s   ; Also 5 minutes
+}
+

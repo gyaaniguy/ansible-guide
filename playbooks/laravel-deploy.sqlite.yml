@@ -1,0 +1,87 @@
+---
+# This requires first setting git bare repo on server, then setting it as 'origin' in git and pushing your local code to this bare repo
+# ansible-playbook laravel.yml -i ./inventory/hosts -l servername --extra-vars "app_path=/var/www/2030 bare_repo=/var/www/2030.git"
+
+- name: Deploy Laravel App to VPS
+  hosts: all
+  vars:
+    app_path: /var/www/2030
+    bare_repo: /var/www/2030.git
+
+  tasks:
+    - name: Mark app path as safe Git directory
+      become: true
+      command: git config --system --add safe.directory {{ app_path }}
+
+    - name: Clone code from bare repo into app path
+      git:
+        repo: "file://{{ bare_repo }}"
+        dest: "{{ app_path }}"
+        version: main
+        accept_hostkey: yes
+        force: yes
+
+    - name: Ensure database directory exists
+      file:
+        path: "{{ app_path }}/database"
+        state: directory
+        owner: www-data
+        group: www-data
+        mode: '0775'
+
+    - name: Ensure SQLite file exists
+      file:
+        path: "{{ app_path }}/database/database.sqlite"
+        state: touch
+        owner: www-data
+        group: www-data
+        mode: '0664'
+
+    - name: Ensure storage and bootstrap/cache permissions
+      file:
+        path: "{{ app_path }}/{{ item }}"
+        state: directory
+        recurse: yes
+        owner: www-data
+        group: www-data
+        mode: '0775'
+      loop:
+        - storage
+        - bootstrap/cache
+        - database
+
+    - name: Install PHP dependencies
+      command: composer install --no-interaction --prefer-dist --optimize-autoloader
+      args:
+        chdir: "{{ app_path }}"
+
+
+    - name: Run Laravel migrations
+      command: php artisan migrate --force
+      args:
+        chdir: "{{ app_path }}"
+
+    - name: Run npm install and build
+      shell: export NVM_DIR="$HOME/.nvm" && . $NVM_DIR/nvm.sh && npm i && npm run build
+      args:
+        chdir: "{{ app_path }}"
+
+    - name: Check if APP_KEY is set
+      shell: grep "^APP_KEY=" {{ app_path }}/.env | cut -d= -f2
+      register: app_key
+      failed_when: false
+
+    - name: Generate app key if not present
+      shell: cp .env.example .env && php artisan key:generate
+      args:
+        chdir: "{{ app_path }}"
+      when: app_key.stdout == ""
+
+    - name: Fix final ownership of app directory
+      become: true
+      file:
+        path: "{{ app_path }}"
+        state: directory
+        recurse: yes
+        owner: www-data
+        group: www-data

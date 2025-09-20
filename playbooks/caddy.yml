@@ -1,0 +1,26 @@
+- name: Install Caddy
+  hosts: all
+  become: true
+  tasks:
+
+    - name: Install required packages
+      ansible.builtin.apt:
+        name:
+          - caddy
+          - unzip
+          - curl
+          - git
+        state: present
+        update_cache: yes
+
+    - name: Ensure Caddy is running
+      ansible.builtin.service:
+        name: caddy
+        state: started
+        enabled: yes
+
+  handlers:
+    - name: Restart Caddy
+      ansible.builtin.service:
+        name: caddy
+        state: restarted

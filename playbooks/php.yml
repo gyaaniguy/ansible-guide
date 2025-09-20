@@ -1,0 +1,96 @@
+- name: Add PHP
+  hosts: all
+  become: true
+  tasks:
+    - name: Install prerequisites for adding repositories
+      ansible.builtin.apt:
+        name:
+          - apt-transport-https
+          - lsb-release
+          - ca-certificates
+          - curl
+        state: present
+        update_cache: yes
+
+    - name: Get Debian codename
+      ansible.builtin.command: lsb_release -sc
+      register: debian_codename
+      changed_when: false
+
+    - name: Add Sury's GPG key
+      ansible.builtin.shell: |
+        curl -fsSL https://packages.sury.org/php/apt.gpg | tee /etc/apt/trusted.gpg.d/sury-keyring.gpg > /dev/null
+      args:
+        executable: /bin/bash
+
+    - name: Add Sury's PHP repository for Debian
+      ansible.builtin.copy:
+        dest: /etc/apt/sources.list.d/sury-php.list
+        content: "deb [signed-by=/etc/apt/trusted.gpg.d/sury-keyring.gpg] https://packages.sury.org/php/ {{ debian_codename.stdout }} main"
+
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: yes
+
+
+    - name: Install required packages
+      ansible.builtin.apt:
+        name:
+          - php8.2-fpm
+          - php8.2-gd
+          - php8.2-sqlite3
+          - php8.2-cli
+          - php8.2-mbstring
+          - php8.2-xml
+          - php8.2-bcmath
+          - php8.2-curl
+          - php8.2-zip
+          - php8.2-xdebug
+          - php8.2-intl
+
+        state: present
+        update_cache: yes
+
+    - name: Ensure PHP-FPM 8.2 is running
+      ansible.builtin.service:
+        name: php8.2-fpm
+        state: started
+        enabled: yes
+
+    - name: Find PHP-FPM socket file
+      ansible.builtin.shell: "find /run/php -name 'php*-fpm.sock' | head -n 1"
+      register: php_fpm_socket
+      changed_when: false
+
+    - name: Download Composer installer
+      ansible.builtin.get_url:
+        url: https://getcomposer.org/installer
+        dest: /tmp/composer-setup.php
+        mode: '0644'
+
+    - name: Install Composer
+      ansible.builtin.command:
+        cmd: php /tmp/composer-setup.php --install-dir=/usr/local/bin --filename=composer
+        creates: /usr/local/bin/composer
+
+    - name: Check if Composer exists
+      ansible.builtin.stat:
+        path: /usr/local/bin/composer
+      register: composer_bin
+
+    - name: Debug Composer version
+      ansible.builtin.debug:
+        var: composer_version
+
+    - name: Create directories for sites
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: www-data
+        group: www-data
+        mode: '0755'
+      loop:
+        - /var/www/static-site
+        - /var/www/laravel-site
+
+

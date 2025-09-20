@@ -1,0 +1,80 @@
+- name: Configure PHP upload settings for Caddy
+  hosts: all
+  become: yes
+  vars:
+    upload_settings_file: /etc/php/conf.d/upload_settings.ini
+    # These are fallback paths if automatic detection fails
+    php_ini_search_paths:
+      - /etc/php.ini
+      - /etc/php/*/fpm/php.ini
+      - /etc/php/*/apache2/php.ini
+      - /etc/php/*/cli/php.ini
+
+  tasks:
+    - name: Find active php.ini path using shell command
+      ansible.builtin.shell: |
+        php --ini | grep "Loaded Configuration File" | awk '{print $4}'
+      register: php_ini_path_result
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Set php.ini path
+      ansible.builtin.set_fact:
+        php_ini_path: "{{ php_ini_path_result.stdout_lines[0] | default(php_ini_search_paths | first) }}"
+
+    - name: Verify php.ini exists
+      ansible.builtin.stat:
+        path: "{{ php_ini_path }}"
+      register: php_ini_stat
+
+    - name: Fail if php.ini not found
+      ansible.builtin.fail:
+        msg: "Could not locate php.ini. Searched: {{ php_ini_path_result.stdout_lines | default('') }} and {{ php_ini_search_paths }}"
+      when: not php_ini_stat.stat.exists
+
+    - name: Create conf.d directory if it doesn't exist
+      ansible.builtin.file:
+        path: /etc/php/conf.d
+        state: directory
+        mode: '0755'
+
+    - name: Upload upload settings file
+      ansible.builtin.copy:
+        src: configs/upload_settings.ini
+        dest: "{{ upload_settings_file }}"
+        mode: '0644'
+      notify: Restart PHP service
+
+    - name: Check current include_path configuration
+      ansible.builtin.shell: |
+          if [ -f "{{ php_ini_path }}" ] && grep -q "include_path.*{{ upload_settings_file }}" "{{ php_ini_path }}"; then
+            echo "already_configured"
+          else
+            echo "needs_configuration"
+          fi
+      register: include_check
+      changed_when: false
+      ignore_errors: yes
+      when: php_ini_stat.stat.exists
+
+    - name: Ensure upload settings are included in php.ini
+      ansible.builtin.lineinfile:
+        path: "{{ php_ini_path }}"
+        line: "include_path = {{ upload_settings_file }}"
+        regexp: '^include_path\s*='
+        state: present
+      when:
+        - php_ini_stat.stat.exists
+        - include_check.stdout is defined
+        - "'needs_configuration' in include_check.stdout"
+      notify: Restart PHP service
+
+  handlers:
+    - name: Restart PHP service
+      ansible.builtin.service:
+        name: "{{ item }}"
+        state: restarted
+      loop:
+        - php-fpm  # Most common for Caddy
+        - caddy    # Sometimes needed depending on your Caddy-PHP setup
+      ignore_errors: yes

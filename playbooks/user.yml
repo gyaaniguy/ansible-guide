@@ -1,0 +1,32 @@
+- name: Create a login username
+  hosts: all
+  vars:
+    username: "{{ u | default('baduser') }}"
+    password: "{{ p | password_hash('sha512') }}"
+  tasks:
+    - name: Add a username
+      ansible.builtin.user:
+        name: "{{ username }}"
+        password: "{{ password }}"
+        groups:
+          - sudo
+          - www-data
+        state: present
+        shell: /bin/zsh
+        system: no
+        create_home: yes
+        home: "/home/{{ username }}"
+
+    - name: Add SSH key
+      ansible.builtin.authorized_key:
+        user: "{{ username }}"
+        state: present
+        key: "{{ lookup('file', './ssh/shelrack.pub') }}"
+
+    - name: Copy .zshrc file
+      ansible.builtin.copy:
+        src: ./configs/.zshrc
+        dest: "/home/{{ username }}/.zshrc"
+        owner: "{{ username }}"
+        group: "{{ username }}"
+        mode: '0644'
