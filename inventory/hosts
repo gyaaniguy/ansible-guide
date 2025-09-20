@@ -1,6 +1,5 @@
 [servername]
 yoursite.com
 
-
 [local]
 localhost ansible_connection=local

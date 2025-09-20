@@ -1,11 +1,17 @@
 ## Ansible guide companion repo
 
-This is the companion repo for my ansible guide:  
-https://gyaaniguy.top/blog/ansible-basics/  
-Please read it to install and get started with using ansible. 
+Companion repo for my ansible guide: https://gyaaniguy.top/blog/ansible-basics/  
+
+Please read the above guide to learn more about ansible, what it can do, how to install and use it.  
 
 
 ## How to execute scripts found in this repo:
+
+Ansible is the most fantastic depoyment and server management tool known to man ! Its time it gets some more recognition. 
+
+First make sure ansible is installed. 
+
+I wouldn't advise running these scripts blindly. In many cases you would need to adapt the playbooks (yml scripts) for your own purposes. 
 
 #### Install apps below command runs the apt.yml task
 
@@ -50,7 +56,7 @@ ansible-playbook ~/work/ansibleDir/playbooks/laravel_setup.yml \
 2. Next cd into your laravel app and setup git so we can push to the bare repo created on the server
 
 ```bash
-git init ; git add . ; git commit -m 'init' ; git remote add origin ssh://aa@107.189.3.253/home/remoteuser/barerepoDir.git ; git push --set-upstream origin main
+git init ; git add . ; git commit -m 'init' ; git remote add origin ssh://remoteuser@somesite.com/home/remoteuser/barerepoDir.git ; git push --set-upstream origin main
 ```
 
 3. Finally run the second playbook to actually push and deploy the website run the below playbook. Run this whenever you need update prod
